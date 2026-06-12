@@ -13,7 +13,7 @@
 #include <boost/hash2/sha2.hpp>
 
 #include "../structs/user.hpp"
-\
+
 std::string sha256(const std::string& input) {
     boost::hash2::sha2_256 hash;
 
@@ -29,7 +29,7 @@ std::string sha256(const std::string& input) {
     return hash_string;
 }
 
-class UserStorage {
+class UserRepository {
 private:
     std::mutex mtx;
 
@@ -41,7 +41,7 @@ private:
     boost::uuids::random_generator generator_uuids;
     
 
-    UserStorage() {
+    UserRepository() {
         std::ifstream in("users.txt");
         
         std::string line;
@@ -56,10 +56,10 @@ private:
         }
     }
 
-    ~UserStorage() = default;
+    ~UserRepository() = default;
 
-    UserStorage(const UserStorage&) = delete;
-    UserStorage& operator=(const UserStorage&) = delete;
+    UserRepository(const UserRepository&) = delete;
+    UserRepository& operator=(const UserRepository&) = delete;
 
     bool isUserInDbUnsafe(const std::string& login) {
         return std::find_if(users.begin(), users.end(), [login](const User& u) { return u.login == login; }) != users.end();
@@ -81,8 +81,8 @@ private:
 
 public:
 
-    static UserStorage& getInstance() {
-        static UserStorage instance;
+    static UserRepository& getInstance() {
+        static UserRepository instance;
         return instance;
     }
 

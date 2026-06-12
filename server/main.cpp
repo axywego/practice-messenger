@@ -12,11 +12,6 @@
 #include <unordered_map>
 #include <mutex>
 
-#include "../include/cast.hpp"
-#include "../include/crypto.hpp"
-
-#include "../include/repositories/user_repository.hpp"
-
 #include "../include/handlers/client_handler.hpp"
 
 int main() {

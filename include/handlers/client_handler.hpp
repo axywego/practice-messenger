@@ -1,5 +1,10 @@
 #pragma once
 
+#include "../include/repositories/user_repository.hpp"
+
+#include "../include/cast.hpp"
+#include "../include/crypto.hpp"
+
 #include "protocol.hpp"
 #include "messages.hpp"
 
@@ -9,9 +14,9 @@ std::vector<uint8_t> handle_register(const std::vector<uint8_t>& body) {
     std::vector<uint8_t> response;
     AuthRequest req = parseAuthRequest(body);
 
-    bool result = UserStorage::getInstance().registerUser(req.login, req.password);
+    bool result = UserRepository::getInstance().registerUser(req.login, req.password);
     if (result) {
-        std::string token = UserStorage::getInstance().verifyUser(req.login, req.password);
+        std::string token = UserRepository::getInstance().verifyUser(req.login, req.password);
         AuthResponse res {true, token};
         response = makeAuthResponse(res);
     }
@@ -27,7 +32,7 @@ std::vector<uint8_t> handle_login(const std::vector<uint8_t>& body) {
     std::vector<uint8_t> response;
     AuthRequest req = parseAuthRequest(body);
 
-    std::string token = UserStorage::getInstance().verifyUser(req.login, req.password);
+    std::string token = UserRepository::getInstance().verifyUser(req.login, req.password);
     if (!token.empty()) {
         AuthResponse res {true, token};
         response = makeAuthResponse(res);
@@ -44,7 +49,7 @@ std::vector<uint8_t> handle_message(const std::vector<uint8_t>& body) {
     std::vector<uint8_t> response;
     ChatRequest req = parseChatRequest(body);
 
-    std::string login = UserStorage::getInstance().getLoginByToken(req.token);
+    std::string login = UserRepository::getInstance().getLoginByToken(req.token);
     if(!login.empty()) {
         ChatResponse res{true};
         response = makeChatResponse(res);
@@ -62,7 +67,7 @@ std::vector<uint8_t> handle_upload(const std::vector<uint8_t>& body) {
     std::vector<uint8_t> response;
     FileRequest req = parseFileRequest(body);
 
-    std::string login = UserStorage::getInstance().getLoginByToken(req.token);
+    std::string login = UserRepository::getInstance().getLoginByToken(req.token);
     if(!login.empty()) {
         auto encrypted = encryptAES(req.file_data, SERVER_KEY);
         bytesToFile(req.file_name, encrypted);
@@ -82,7 +87,7 @@ std::vector<uint8_t> handle_download(const std::vector<uint8_t>& body) {
     std::vector<uint8_t> response;
     DownloadRequest req = parseDownloadRequest(body);
 
-    std::string login = UserStorage::getInstance().getLoginByToken(req.token);
+    std::string login = UserRepository::getInstance().getLoginByToken(req.token);
 
     std::vector<uint8_t> bytes;
     if(!login.empty()) {
