@@ -11,8 +11,13 @@ struct AuthRequest {
     std::string password;
 };
 
-struct ChatRequest {
+struct ChatSendRequest {
     std::string token;
+    std::string message;
+};
+
+struct ChatIncoming {
+    std::string sender_login;
     std::string message;
 };
 
@@ -101,10 +106,19 @@ std::vector<std::uint8_t> makeAuthRequest(const AuthRequest& req) {
     return body;
 }
 
-std::vector<uint8_t> makeChatRequest(const ChatRequest& req) {
+std::vector<uint8_t> makeChatSendRequest(const ChatSendRequest& req) {
     std::vector<uint8_t> body;
 
     pack(body, stringToBytes(req.token));
+    pack(body, stringToBytes(req.message));
+
+    return body;
+}
+
+std::vector<uint8_t> makeChatIncoming(const ChatIncoming& req) {
+    std::vector<uint8_t> body;
+
+    pack(body, stringToBytes(req.sender_login));
     pack(body, stringToBytes(req.message));
 
     return body;
@@ -142,13 +156,23 @@ AuthRequest parseAuthRequest(const std::vector<uint8_t>& body) {
 }
 
 // [4 байта: длина токена][токен][4 байта: длина сообщения][сообщение]
-ChatRequest parseChatRequest(const std::vector<uint8_t>& body) {
+ChatSendRequest parseChatSendRequest(const std::vector<uint8_t>& body) {
     size_t offset = 0;
 
     const auto token = unpack(offset, body);
     const auto message = unpack(offset, body);
 
-    return ChatRequest {token, message};
+    return ChatSendRequest {token, message};
+}
+
+// [4 байта: длина логина][логин][4 байта: длина сообщения][сообщение]
+ChatIncoming parseChatIncoming(const std::vector<uint8_t>& body) {
+    size_t offset = 0;
+
+    const auto sender_login = unpack(offset, body);
+    const auto message = unpack(offset, body);
+
+    return ChatIncoming {sender_login, message};
 }
 
 // [4 байта: длина токена][токен][4 байта: длина названия][название][4 байта: длина файла][данные файл]

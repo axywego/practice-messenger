@@ -6,6 +6,7 @@
 #include "../include/protocol.hpp"
 #include "../include/messages.hpp"
 #include "../include/cast.hpp"
+#include "../include/client_async_handler.hpp"
 
 #include <fstream>
 #include <filesystem>
@@ -14,7 +15,7 @@ constexpr size_t MAX_FILE_SIZE = 1024 * 1024;
 
 using boost::asio::ip::tcp;
 
-std::string authorize(tcp::socket& socket) {
+std::string authorize(std::shared_ptr<ClientAsyncHandler> handler) {
     std::println("Для входа в систему вам необходимо войти/зарегистрироваться. Введите LOGIN/REGISTER соотвественно.");
     std::println("Пример команды: REGISTER login password");
 
@@ -41,9 +42,12 @@ std::string authorize(tcp::socket& socket) {
 
         AuthRequest req {login, password};
 
-        send_packet(socket, command == "REGISTER" ? PacketType::REGISTER : PacketType::LOGIN, makeAuthRequest(req));
+        std::println("SEND REQUEST TO AUTH...");
+        send_packet_sync(handler->get_socket(), command == "REGISTER" ? PacketType::REGISTER : PacketType::LOGIN, makeAuthRequest(req));
 
-        const auto& [result_type, result_body] = recv_packet(socket);
+        std::println("WAITING RESPONSE...");
+        const auto& [result_type, result_body] = recv_packet_sync(handler->get_socket());
+        std::println("RESPONSE HERE...");
 
         AuthResponse res = parseAuthResponse(result_body);
 
@@ -56,18 +60,22 @@ std::string authorize(tcp::socket& socket) {
 }
 
 
-void chat(tcp::socket& socket, const std::string& token) {
+void chat_loop(std::shared_ptr<ClientAsyncHandler> handler, const std::string& token) {
 
     while(true) {
-
-        std::println("=========================");
-        std::println("1. Отправить сообщение");
-        std::println("2. Отравить файл");
-        std::println("3. Скачать файл");
-        std::println("=========================");
-        std::print(">>> ");
-        
         std::string choice;
+
+        {
+            std::lock_guard lock(ClientAsyncHandler::console_mutex);
+
+            std::println("=========================");
+            std::println("1. Отправить сообщение");
+            std::println("2. Отравить файл");
+            std::println("3. Скачать файл");
+            std::println("=========================");
+            std::print(">>> ");
+        }
+
         std::getline(std::cin, choice);
 
         if(choice == "1") {
@@ -76,17 +84,9 @@ void chat(tcp::socket& socket, const std::string& token) {
             std::string msg;
             std::getline(std::cin, msg);
 
-            ChatRequest req {token, msg};
+            ChatSendRequest req {token, msg};
 
-            send_packet(socket, PacketType::MESSAGE, makeChatRequest(req));
-
-            const auto& [result_type, result_body] = recv_packet(socket);
-
-            ChatResponse res = parseChatResponse(result_body);
-
-            if(!res.success) {
-                std::println("Сообщение не было отправлено!");
-            }
+            handler->send_packet(PacketType::MESSAGE, makeChatSendRequest(req));
         }
 
         else if(choice == "2") {
@@ -105,14 +105,7 @@ void chat(tcp::socket& socket, const std::string& token) {
 
             FileRequest req {token, file_name, file_buffer};
 
-            send_packet(socket, PacketType::UPLOAD, makeFileRequest(req));
-
-            const auto& [result_type, result_body] = recv_packet(socket);
-            FileResponse res = parseFileResponse(result_body);
-
-            if(!res.success) {
-                std::println("Файл не был отправлен!");
-            }
+            handler->send_packet(PacketType::UPLOAD, makeFileRequest(req));
         }
 
         else if(choice == "3") {
@@ -123,45 +116,31 @@ void chat(tcp::socket& socket, const std::string& token) {
 
             DownloadRequest req {token, file_name};
 
-            send_packet(socket, PacketType::DOWNLOAD, makeDownloadRequest(req));
-
-            const auto& [result_type, result_body] = recv_packet(socket);
-
-            DownloadResponse res = parseDownloadResponse(result_body);
-
-            if(res.success) {
-                bytesToFile(file_name, res.file_data);
-            }
-            else {
-                std::println("Не удалось скачать файл!");
-            }
+            handler->send_packet(PacketType::DOWNLOAD, makeDownloadRequest(req));
         }
     }
 }
 
-void connect_to_server(const std::string& server_ip) {
+int main() {
     try {
         boost::asio::io_context io_context;
+
         tcp::socket socket(io_context);
-        socket.connect(tcp::endpoint(boost::asio::ip::make_address(server_ip), 12345));
+        socket.connect(tcp::endpoint(boost::asio::ip::make_address_v4("0.0.0.0"), 12345));
+        auto handler = std::make_shared<ClientAsyncHandler>(std::move(socket));
+        std::println("Подключение к серверу!");
 
-        std::println("Подключение к серверу {}", server_ip);
-
-        auto token = authorize(socket);
-
+        auto token = authorize(handler);
         std::println("Успешный вход! Вам стал доступен чат.");
 
-        chat(socket, token);
+        std::thread input_thread(chat_loop, handler, token);
+        input_thread.detach();
+
+        handler->start();
+
+        io_context.run();
     }
     catch (std::exception& e) {
         std::cerr << "Exception: " << e.what() << '\n';
     }
-}
-
-int main() {
-    std::string server_ip;
-    std::print("Введите адрес сервера в формате xx.xx.xx.xx: ");
-    std::getline(std::cin, server_ip);
-    connect_to_server(server_ip);
-    return 0;
 }

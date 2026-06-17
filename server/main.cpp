@@ -12,24 +12,44 @@
 #include <unordered_map>
 #include <mutex>
 
-#include "../include/handlers/client_handler.hpp"
+#include "../include/client_session.hpp"
+
+class Server {
+private:
+    boost::asio::io_context io_context;
+    tcp::endpoint endpoint;
+    tcp::acceptor acceptor;
+public:
+    Server() : endpoint(tcp::v4(), 12345), acceptor(io_context, endpoint) {
+        std::println("Сервер создан на адресе {}", endpoint.address().to_string());
+    }
+
+    void start_accept() {
+        acceptor.async_accept(io_context, 
+            [this](boost::system::error_code error, tcp::socket socket) {
+                if(!error) {
+                    std::println("Клиент подключился!");
+                    std::make_shared<ClientSession>(std::move(socket))->start();
+                }
+                else {
+                    std::cerr << "Ошибка accept: " << error.message() << '\n';
+                }
+                start_accept();
+            }
+        );
+    }
+    void run(){
+        io_context.run();
+    }
+};
 
 int main() {
     try {
-        boost::asio::io_context io_context;
-        tcp::endpoint endpoint(tcp::v4(), 12345);
-        tcp::acceptor acceptor(io_context, endpoint);
+        Server server;
 
-        std::println("Сервер запущен по адресу {}. Ждем клиентов.", endpoint.address().to_string());
+        server.start_accept();
 
-        while(true) {
-            tcp::socket socket(io_context);
-            acceptor.accept(socket);
-            std::println("Клиент подключился!");
-
-            std::thread(handle_client, std::move(socket)).detach();
-
-        }
+        server.run();
     }
     catch(std::exception& e) {
         std::cerr << "Exception: " << e.what() << '\n';
