@@ -5,6 +5,8 @@
 #include <vector>
 #include <array>
 
+#include "literals.hpp"
+
 using boost::asio::ip::tcp;
 
 enum class PacketType : uint32_t {
@@ -13,8 +15,34 @@ enum class PacketType : uint32_t {
     UPLOAD = 3,
     DOWNLOAD = 4,
     MESSAGE = 5,
-    RESULT = 6
+    RESULT = 6,
+
+    FRIEND_REQUEST = 7,
+    FRIEND_ACCEPT = 8,
+    FRIEND_REJECT = 9,
+    FRIEND_LIST = 10,
+
+    DIRECT_MESSAGE = 11,
+    MESSAGE_HISTORY = 12
 };
+
+inline std::string packetTypeToString(PacketType type) {
+    switch(type) {
+        case PacketType::REGISTER:         return "REGISTER";
+        case PacketType::LOGIN:            return "LOGIN";
+        case PacketType::UPLOAD:           return "UPLOAD";
+        case PacketType::DOWNLOAD:         return "DOWNLOAD";
+        case PacketType::MESSAGE:          return "MESSAGE";
+        case PacketType::RESULT:           return "RESULT";
+        case PacketType::FRIEND_REQUEST:   return "FRIEND_REQUEST";
+        case PacketType::FRIEND_ACCEPT:    return "FRIEND_ACCEPT";
+        case PacketType::FRIEND_REJECT:    return "FRIEND_REJECT";
+        case PacketType::FRIEND_LIST:      return "FRIEND_LIST";
+        case PacketType::DIRECT_MESSAGE:   return "DIRECT_MESSAGE";
+        case PacketType::MESSAGE_HISTORY:  return "MESSAGE_HISTORY";
+        default:                           return "UNKNOWN";
+    }
+}
 
 inline void send_packet_sync(tcp::socket& socket, PacketType type, const std::vector<uint8_t>& body) {
     std::vector<uint8_t> full_buffer;
@@ -51,6 +79,10 @@ inline std::pair<PacketType, std::vector<uint8_t>> recv_packet_sync(tcp::socket&
 
     auto type = static_cast<PacketType>(ntohl(type_net));
     auto length = ntohl(length_net);
+
+    if(length > 10_MB) {
+        throw std::runtime_error("packet too large");
+    }
 
     std::vector<uint8_t> body(length);
     if(length > 0) {

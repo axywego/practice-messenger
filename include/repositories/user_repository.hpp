@@ -12,6 +12,8 @@
 #include <boost/uuid/uuid_io.hpp>
 #include <boost/hash2/sha2.hpp>
 
+#include "../database.hpp"
+
 #include "../structs/user.hpp"
 
 std::string sha256(const std::string& input) {
@@ -33,50 +35,27 @@ class UserRepository {
 private:
     std::mutex mtx;
 
-    std::vector<User> users;
-
     // token to login
     std::unordered_map<std::string, std::string> sessions;
 
     boost::uuids::random_generator generator_uuids;
     
-
-    UserRepository() {
-        std::ifstream in("users.txt");
-        
-        std::string line;
-        while(std::getline(in, line)){
-            std::istringstream iss(line);
-            std::string login, salt, password;
-            std::getline(iss, login, ':');
-            std::getline(iss, salt, ':');
-            std::getline(iss, password, ':');
-
-            users.emplace_back(login, salt, password);
-        }
-    }
-
+    UserRepository() = default;
     ~UserRepository() = default;
-
     UserRepository(const UserRepository&) = delete;
     UserRepository& operator=(const UserRepository&) = delete;
 
-    bool isUserInDbUnsafe(const std::string& login) {
-        return std::find_if(users.begin(), users.end(), [login](const User& u) { return u.login == login; }) != users.end();
-    }
+    bool verifyPassword(const std::string& login, const std::string& password) {
+        auto& db = Database::getInstance().get_db();
 
+        SQLite::Statement q(db, "SELECT salt, password FROM users WHERE login = ?");
+        q.bind(1, login);
+        if(!q.executeStep()) return false;
 
-    bool isUserInDbUnsafe(const std::string& login, const std::string& password) {
-        auto it = std::find_if(users.begin(), users.end(), 
-            [login](const User& u) { 
-                return u.login == login;
-             });
+        std::string salt = q.getColumn(0).getText();
+        std::string hash = q.getColumn(1).getText();
 
-        if(it != users.end()) {
-            return sha256(password + it->salt) == it->password;
-        }
-
-        return false;
+        return sha256(password + salt) == hash;
     }
 
 public:
@@ -94,26 +73,27 @@ public:
     bool registerUser(const std::string& login, const std::string& password) {
         std::lock_guard lock(mtx);
 
-        if(!isUserInDbUnsafe(login)) {
-            std::string salt = generateSalt();
-            std::string hash = sha256(password + salt);
+        auto& db = Database::getInstance().get_db();
 
-            std::string line = std::format("{}:{}:{}\n", login, salt, hash);
+        SQLite::Statement check(db, "SELECT 1 FROM users WHERE login = ?");
+        check.bind(1, login);
+        if(check.executeStep()) return false;
 
-            std::ofstream out("users.txt", std::ios::app);
-            out << line;
+        std::string salt = generateSalt();
+        std::string hash = sha256(password + salt);
 
-            users.emplace_back(login, salt, hash);
+        SQLite::Statement ins(db, "INSERT INTO users (login, salt, password) VALUES (?, ?, ?)");
+        ins.bind(1, login);
+        ins.bind(2, salt);
+        ins.bind(3, hash);
+        ins.exec();
 
-            return true;
-        }
-
-        return false;
+        return true;
     }
 
     std::string verifyUser(const std::string& login, const std::string& password) {
         std::lock_guard lock(mtx);
-        if(isUserInDbUnsafe(login, password)){
+        if(verifyPassword(login, password)){
             boost::uuids::uuid id = generator_uuids();
             std::string token = boost::uuids::to_string(id);
 
@@ -128,5 +108,14 @@ public:
         auto it = sessions.find(token);
         if(it != sessions.end()) return it->second;
         return "";
+    }
+
+    bool userExists(const std::string& login) {
+        std::lock_guard lock(mtx);
+        auto& db = Database::getInstance().get_db();
+
+        SQLite::Statement q(db, "SELECT 1 FROM users WHERE login = ?");
+        q.bind(1, login);
+        return q.executeStep();
     }
 };

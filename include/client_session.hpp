@@ -13,76 +13,85 @@
 #include "crypto.hpp"
 #include "cast.hpp"
 #include "services/session_manager.hpp"
+#include "logger.hpp"
+#include "codes.hpp"
 
 using boost::asio::ip::tcp;
+
 
 class ClientSession : public NetworkSession {
 private:
     using NetworkSession::NetworkSession;
 
     std::string current_login;
+    
+    ErrorCode errorCode;
 
     std::vector<uint8_t> handle_register(const std::vector<uint8_t>& body, std::string& login, bool& is_auth_success) {
         std::vector<uint8_t> response;
-        AuthRequest req = parseAuthRequest(body);
+
+        AuthRequest req = AuthRequest::deserialize(body);
 
         bool result = UserRepository::getInstance().registerUser(req.login, req.password);
+
         if (result) {
             std::string token = UserRepository::getInstance().verifyUser(req.login, req.password);
 
-            AuthResponse res {true, token};
-            response = makeAuthResponse(res);
+            AuthResponse res {.success = true, .token = token};
+            response = res.serialize();
 
             login = req.login;
             is_auth_success = true;
         }
         else {
-            AuthResponse res {false, ""};
-            response = makeAuthResponse(res);
+            errorCode = Error::Auth::LoginExists;
+            AuthResponse res {.success = false, .token = ""};
+            response = res.serialize();
         }
 
         return response;
     }
 
     std::vector<uint8_t> handle_login(const std::vector<uint8_t>& body, std::string& login, bool& is_auth_success) {
-        std::println("GET REQUEST ON LOGIN...");
         std::vector<uint8_t> response;
-        AuthRequest req = parseAuthRequest(body);
+        
+        AuthRequest req = AuthRequest::deserialize(body);
 
         std::string token = UserRepository::getInstance().verifyUser(req.login, req.password);
+
         if (!token.empty()) {
-            AuthResponse res {true, token};
-            response = makeAuthResponse(res);
+            AuthResponse res {.success = true, .token = token};
+            response = res.serialize();
 
             login = req.login;
             is_auth_success = true;
         }
         else {
-            AuthResponse res {false, ""};
-            response = makeAuthResponse(res);
+            errorCode = Error::Auth::IncorrectCredentials;
+            AuthResponse res {.success = false, .token = ""};
+            response = res.serialize();
         }
-        std::println("RESPONSE WAS CREATED...");
 
         return response;
     }
 
     std::vector<uint8_t> handle_message(const std::vector<uint8_t>& body) {
         std::vector<uint8_t> response;
-        ChatSendRequest req = parseChatSendRequest(body);
+        ChatSendRequest req = ChatSendRequest::deserialize(body);
 
         std::string login = UserRepository::getInstance().getLoginByToken(req.token);
         if(!login.empty()) {
-            ChatResponse res{true};
-            response = makeChatResponse(res);
+            ChatResponse res {.success = true};
+            response = res.serialize();
             
             std::println("[{}]: {}", login, req.message);
 
-            ChatIncoming incoming{login, req.message};
-            SessionManager::getInstance().broadcast(login, makeChatIncoming(incoming));
+            ChatIncoming incoming{.sender_login = login, .message = req.message};
+            SessionManager::getInstance().broadcast(login, incoming.serialize());
         }
         else {
-            ChatResponse res{false};
-            response = makeChatResponse(res);
+            ChatResponse res {.success = false};
+            response = res.serialize();
         }
 
         return response;
@@ -90,19 +99,19 @@ private:
 
     std::vector<uint8_t> handle_upload(const std::vector<uint8_t>& body) {
         std::vector<uint8_t> response;
-        FileRequest req = parseFileRequest(body);
+        FileUploadRequest req = FileUploadRequest::deserialize(body);
 
         std::string login = UserRepository::getInstance().getLoginByToken(req.token);
         if(!login.empty()) {
             auto encrypted = encryptAES(req.file_data, SERVER_KEY);
             bytesToFile(req.file_name, encrypted);
 
-            FileResponse res{true};
-            response = makeFileResponse(res);
+            FileUploadResponse res{.success = true};
+            response = res.serialize();
         }
         else {
-            FileResponse res{false};
-            response = makeFileResponse(res);
+            FileUploadResponse res{.success = false};
+            response = res.serialize();
         }
 
         return response;
@@ -110,7 +119,7 @@ private:
 
     std::vector<uint8_t> handle_download(const std::vector<uint8_t>& body) {
         std::vector<uint8_t> response;
-        DownloadRequest req = parseDownloadRequest(body);
+        FileDownloadRequest req = FileDownloadRequest::deserialize(body);
 
         std::string login = UserRepository::getInstance().getLoginByToken(req.token);
 
@@ -119,12 +128,12 @@ private:
             bytes = fileToBytes(req.file_name);
             auto decrypted = decryptAES(bytes, SERVER_KEY);
 
-            DownloadResponse res {true, decrypted};
-            response = makeDownloadResponse(res);
+            FileDownloadResponse res {.success = true, .file_data = decrypted};
+            response = res.serialize();
         }
         else {
-            DownloadResponse res {false, bytes};
-            response = makeDownloadResponse(res);
+            FileDownloadResponse res {.success = false, .file_data = bytes};
+            response = res.serialize();
         }
 
         return response;
@@ -136,6 +145,8 @@ protected:
         auto self = shared_from_this();
         std::vector<uint8_t> response;
 
+        errorCode.clear();
+        
         bool is_auth_success = false;
         std::string login;
 
@@ -169,14 +180,13 @@ protected:
         }
 
         if(is_auth_success) {
-            std::println("Успешный вход пользователя {}", login);
             current_login = login;
             SessionManager::getInstance().addUser(current_login, self);
-            std::println("Добавление пользователя в список онлайн юзеров");
         }
 
         if(!response.empty()){
             send_packet(PacketType::RESULT, response);
+            Logger::getInstance().logPacket(packet_type, errorCode);
         }
     }
 

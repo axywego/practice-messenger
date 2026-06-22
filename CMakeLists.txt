@@ -8,6 +8,23 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(Boost CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
 
+include(FetchContent)
+FetchContent_Declare(ftxui
+  GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
+  GIT_TAG v7.0.0
+)
+FetchContent_MakeAvailable(ftxui)
+
+include(FetchContent)
+FetchContent_Declare(
+    SQLiteCpp
+    GIT_REPOSITORY https://github.com/SRombauts/SQLiteCpp.git
+    GIT_TAG        3.3.3
+)
+set(SQLITECPP_RUN_CPPLINT   OFF CACHE BOOL "" FORCE)
+set(SQLITECPP_RUN_CPPCHECK  OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(SQLiteCpp)
+
 add_subdirectory(server)
 add_subdirectory(client)
 
