@@ -7,6 +7,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Boost CONFIG REQUIRED)
 find_package(OpenSSL REQUIRED)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Sql Gui Quick Qml)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Sql Gui Quick Qml)
+
+qt6_standard_project_setup()
 
 include(FetchContent)
 FetchContent_Declare(ftxui

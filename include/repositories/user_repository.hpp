@@ -6,6 +6,7 @@
 #include <string>
 #include <sstream>
 #include <unordered_map>
+#include <expected>
 
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
@@ -70,14 +71,14 @@ public:
         return boost::uuids::to_string(id);
     }
 
-    bool registerUser(const std::string& login, const std::string& password) {
+    ErrorCode registerUser(const std::string& login, const std::string& password) {
         std::lock_guard lock(mtx);
 
         auto& db = Database::getInstance().get_db();
 
         SQLite::Statement check(db, "SELECT 1 FROM users WHERE login = ?");
         check.bind(1, login);
-        if(check.executeStep()) return false;
+        if(check.executeStep()) return Error::Auth::LoginExists;
 
         std::string salt = generateSalt();
         std::string hash = sha256(password + salt);
@@ -88,10 +89,10 @@ public:
         ins.bind(3, hash);
         ins.exec();
 
-        return true;
+        return Error::Base::OK;
     }
 
-    std::string verifyUser(const std::string& login, const std::string& password) {
+    std::expected<std::string, ErrorCode> verifyUser(const std::string& login, const std::string& password) {
         std::lock_guard lock(mtx);
         if(verifyPassword(login, password)){
             boost::uuids::uuid id = generator_uuids();
@@ -100,22 +101,51 @@ public:
             sessions[token] = login;
             return token;
         }
-        return "";
+        return std::unexpected(Error::Auth::IncorrectCredentials);
     }
 
-    std::string getLoginByToken(const std::string& token) {
+    std::expected<std::string, ErrorCode> getLoginByToken(const std::string& token) {
         std::lock_guard lock(mtx);
         auto it = sessions.find(token);
         if(it != sessions.end()) return it->second;
-        return "";
+        return std::unexpected(Error::Auth::NonAuthorized);
     }
 
-    bool userExists(const std::string& login) {
+    ErrorCode userExists(const std::string& login) {
         std::lock_guard lock(mtx);
         auto& db = Database::getInstance().get_db();
 
         SQLite::Statement q(db, "SELECT 1 FROM users WHERE login = ?");
         q.bind(1, login);
-        return q.executeStep();
+        return q.executeStep() ? Error::Base::OK : Error::User::NotFound;
+    }
+
+    std::expected<int64_t, ErrorCode> getIdByLogin(const std::string& login) {
+        std::lock_guard lock(mtx);
+        auto& db = Database::getInstance().get_db();
+
+        SQLite::Statement q(db, "SELECT id FROM users WHERE login = ?");
+        q.bind(1, login);
+
+        if(q.executeStep())
+            return q.getColumn(0).getInt64();
+        return std::unexpected(Error::User::NotFound);
+    }
+
+    std::expected<std::string, ErrorCode> getLoginById(int64_t id) {
+        std::lock_guard lock(mtx);
+        auto& db = Database::getInstance().get_db();
+
+        SQLite::Statement q(db, "SELECT login FROM users WHERE id = ?");
+        q.bind(1, id);
+
+        if(q.executeStep())
+            return q.getColumn(0).getText();
+        return std::unexpected(Error::User::NotFound);
+    }
+
+    void logout(const std::string& token) {
+        std::lock_guard lock(mtx);
+        sessions.erase(token);
     }
 };

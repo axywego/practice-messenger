@@ -63,6 +63,7 @@ public:
                 sender INTEGER NOT NULL,
                 recipient INTEGER NOT NULL,
                 create_at INTEGER NOT NULL,
+                message TEXT NOT NULL,
                 delivered INTEGER NOT NULL,
                 FOREIGN KEY(sender) REFERENCES users(id),
                 FOREIGN KEY(recipient) REFERENCES users(id)

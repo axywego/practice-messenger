@@ -5,10 +5,11 @@
 #include <cstdint>
 #include <sstream>
 #include <memory.h>
+#include "codes.hpp"
 
 using Bytes = std::vector<uint8_t>;
 
-void pack(Bytes& body, const Bytes& data){
+inline void pack(Bytes& body, const Bytes& data){
     auto length = htonl(static_cast<uint32_t>(data.size()));
     
     const uint8_t* len_ptr = reinterpret_cast<const uint8_t*>(&length);
@@ -17,7 +18,7 @@ void pack(Bytes& body, const Bytes& data){
     body.insert(body.end(), data.begin(), data.end());
 }
 
-std::string unpack(size_t& offset, const Bytes& body) {
+inline std::string unpack(size_t& offset, const Bytes& body) {
     if(offset + 4 > body.size()) 
         throw std::runtime_error("unpack: out of bounds");
 
@@ -39,7 +40,7 @@ std::string unpack(size_t& offset, const Bytes& body) {
     return value;
 }
 
-Bytes unpackBytes(size_t& offset, const Bytes& body) {
+inline Bytes unpackBytes(size_t& offset, const Bytes& body) {
     if(offset + 4 > body.size()) 
         throw std::runtime_error("unpack: out of bounds");
 
@@ -60,17 +61,37 @@ Bytes unpackBytes(size_t& offset, const Bytes& body) {
     return value;
 }
 
-Bytes stringToBytes(const std::string& str){
+inline Bytes stringToBytes(const std::string& str){
     return Bytes(str.begin(), str.end());
 }
 
-void pack_i64(Bytes& body, int64_t value) {
+inline void pack_ui32(Bytes& body, uint32_t value) {
+    value = htonl(value);
+    for(int i = 3; i >= 0; --i) {
+        body.push_back(static_cast<uint8_t>((value >> (4 * i)) & 0xFF));
+    }
+}
+
+inline uint32_t unpack_ui32(size_t& offset, const Bytes& body) {
+    if(offset + 4 > body.size()) {
+        throw std::runtime_error("unpack: out of bounds");
+    }
+
+    uint32_t value = 0;
+    for(int i = 0; i < 4; ++i) {
+        value = (value << 4) | body[offset + i];
+    }
+    offset += 4;
+    return ntohl(value);
+}
+
+inline void pack_i64(Bytes& body, int64_t value) {
     for(int i = 7; i >= 0; --i) {
         body.push_back(static_cast<uint8_t>((value >> (8 * i)) & 0xFF));
     }
 }
 
-int64_t unpack_i64(size_t& offset, const Bytes& body) {
+inline int64_t unpack_i64(size_t& offset, const Bytes& body) {
     if(offset + 8 > body.size()) 
         throw std::runtime_error("unpack: out of bounds");
 
@@ -105,6 +126,9 @@ struct Serializer {
             auto nested = value.serialize();
             pack(body, nested);
         }
+        else if constexpr(std::is_same_v<T, ErrorCode>) {
+            pack_ui32(body, value.value);
+        }
     }
     
     static void deserialize(size_t& offset, const Bytes& body, T& value) {
@@ -125,6 +149,9 @@ struct Serializer {
         else if constexpr(std::is_base_of_v<Serializable<T>, T>) {
             Bytes nested = unpackBytes(offset, body);
             value = T::deserialize(nested);
+        }
+        else if constexpr(std::is_same_v<T, ErrorCode>) {
+            value = unpack_ui32(offset, body);
         }
     }
 };
@@ -206,11 +233,11 @@ struct AuthRequest : Serializable<AuthRequest> {
 };
 
 struct AuthResponse : Serializable<AuthResponse> {
-    bool success;
     std::string token;
+    ErrorCode error;
 
-    auto fields() { return std::tie(success, token); }
-    auto fields() const { return std::tie(success, token); }
+    auto fields() { return std::tie(token, error); }
+    auto fields() const { return std::tie(token, error); }
 };
 
 struct ChatSendRequest : Serializable<ChatSendRequest> {
@@ -230,10 +257,10 @@ struct ChatIncoming : Serializable<ChatIncoming> {
 };
 
 struct ChatResponse : Serializable<ChatResponse> {
-    bool success;
+    ErrorCode error;
 
-    auto fields() { return std::tie(success); }
-    auto fields() const { return std::tie(success); }
+    auto fields() { return std::tie(error); }
+    auto fields() const { return std::tie(error); }
 };
 
 struct FileUploadRequest : Serializable<FileUploadRequest> {
@@ -246,10 +273,10 @@ struct FileUploadRequest : Serializable<FileUploadRequest> {
 };
 
 struct FileUploadResponse : Serializable<FileUploadResponse> {
-    bool success;
+    ErrorCode error;
 
-    auto fields() { return std::tie(success); }
-    auto fields() const { return std::tie(success); }
+    auto fields() { return std::tie(error); }
+    auto fields() const { return std::tie(error); }
 };
 
 struct FileDownloadRequest : Serializable<FileDownloadRequest> {
@@ -261,28 +288,27 @@ struct FileDownloadRequest : Serializable<FileDownloadRequest> {
 };
 
 struct FileDownloadResponse : Serializable<FileDownloadResponse> {
-    bool success;
     Bytes file_data;
+    ErrorCode error;
 
-    auto fields() { return std::tie(success, file_data); }
-    auto fields() const { return std::tie(success, file_data); }
+    auto fields() { return std::tie(file_data, error); }
+    auto fields() const { return std::tie(file_data, error); }
 };
 
 // FOR FRIEND_REQUEST FRIEND_ACCEPT FRIEND_REJECT
 struct FriendRequest : Serializable<FriendRequest> {
-    std::string login;
+    std::string token;
     std::string target_login;
 
-    auto fields() { return std::tie(login, target_login); }
-    auto fields() const { return std::tie(login, target_login); }
+    auto fields() { return std::tie(token, target_login); }
+    auto fields() const { return std::tie(token, target_login); }
 };
 
 struct FriendResponse : Serializable<FriendResponse> {
-    bool success;
-    std::string message;
+    ErrorCode error;
 
-    auto fields() { return std::tie(success, message); }
-    auto fields() const { return std::tie(success, message); }
+    auto fields() { return std::tie(error); }
+    auto fields() const { return std::tie(error); }
 };
 
 struct FriendListRequest : Serializable<FriendListRequest> {
@@ -295,9 +321,10 @@ struct FriendListRequest : Serializable<FriendListRequest> {
 struct FriendListResponse : Serializable<FriendListResponse> {
     std::vector<std::string> friends;
     std::vector<std::string> pending_incoming;
+    ErrorCode error;
 
-    auto fields() { return std::tie(friends, pending_incoming); }
-    auto fields() const { return std::tie(friends, pending_incoming); }
+    auto fields() { return std::tie(friends, pending_incoming, error); }
+    auto fields() const { return std::tie(friends, pending_incoming, error); }
 };
 
 struct DirectMessageRequest : Serializable<DirectMessageRequest> {
@@ -320,7 +347,7 @@ struct DirectMessageIncoming : Serializable<DirectMessageIncoming> {
 
 struct DirectMessageResponse : Serializable<DirectMessageResponse> {
     bool success;
-    std::string error;
+    ErrorCode error;
 
     auto fields() { return std::tie(success, error); }
     auto fields() const { return std::tie(success, error); }
@@ -344,9 +371,10 @@ struct HistoryResponse : Serializable<HistoryResponse> {
         auto fields() const { return std::tie(from_login, message, timestamp); }
     };
     std::vector<Entry> messages;
+    ErrorCode error;
 
-    auto fields() { return std::tie(messages); }
-    auto fields() const { return std::tie(messages); }
+    auto fields() { return std::tie(messages, error); }
+    auto fields() const { return std::tie(messages, error); }
 };
 
 template<typename T>

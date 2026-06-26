@@ -38,5 +38,12 @@ public:
         online_users.erase(login);
     }
 
-    void broadcast(const std::string& sender_login, const std::vector<uint8_t>& packet_body);
+    void broadcast(const std::string& sender_login, PacketType packet_type, const std::vector<uint8_t>& packet_body);
+
+    std::shared_ptr<NetworkSession> getSession(const std::string& login) {
+        std::lock_guard lock(mtx);
+        auto it = online_users.find(login);
+        if(it == online_users.end()) return nullptr;
+        return it->second.lock();
+    }
 };
