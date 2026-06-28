@@ -38,6 +38,9 @@ qt_add_qml_module(client
         qml/Main.qml
         qml/AuthScreen.qml
         qml/MainScreen.qml
+        qml/SidebarButton.qml
+        qml/Sidebar.qml
+        qml/GeneralChat.qml
 )
 
 if(NOT WIN32)

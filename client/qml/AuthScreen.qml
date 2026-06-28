@@ -69,12 +69,14 @@ Rectangle {
         }
     }
 
-    // Слушаем ошибки авторизации — успех обрабатывается в Main.qml
     Connections {
         target: ClientBridge
 
         function onAuthResult(token, errorCode) {
-            if(!errorCode == 1) {
+            if(errorCode == 1) {
+                stackView.replace("MainScreen.qml")
+            }
+            else {
                 passwordField.text = ""
                 authError.text = "Ошибка: " + errorCode
                 authErrorRect.visible = true

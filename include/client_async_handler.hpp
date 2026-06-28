@@ -13,6 +13,7 @@ class ClientAsyncHandler : public NetworkSession {
     using NetworkSession::NetworkSession;
 
 public:
+    std::function<void(TokenVerifyResponse)> on_token_response;
     std::function<void(AuthResponse)> on_auth_response;
     std::function<void(ChatIncoming)> on_chat_incoming;
     std::function<void(DirectMessageIncoming)> on_dm_incoming;
@@ -61,7 +62,11 @@ protected:
                 }
 
                 switch(original) {
-                    case PacketType::TOKEN_VERIFY:
+                    case PacketType::TOKEN_VERIFY: {
+                        auto res = TokenVerifyResponse::deserialize(body);
+                        if(on_token_response) on_token_response(res);
+                        break;
+                    }
                     case PacketType::REGISTER:
                     case PacketType::LOGIN: {
                         auto res = AuthResponse::deserialize(body);

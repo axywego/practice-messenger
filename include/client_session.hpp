@@ -431,21 +431,21 @@ private:
     }
 
     Bytes handle_token_verify(const Bytes& body) {
-        auto req = TokenRequest::deserialize(body);
+        auto req = TokenVerifyRequest::deserialize(body);
 
         auto login_result = UserRepository::getInstance().getLoginByToken(req.old_token);
 
         if(login_result) {
-            return AuthResponse{
-                .token = login_result.value(),
+            return TokenVerifyResponse {
                 .error = Error::Base::OK
             }.serialize();
 
             errorCode = Error::Base::OK;
         }
+
         errorCode = login_result.error();
-        return AuthResponse {
-            .token = "",
+        
+        return TokenVerifyResponse {
             .error = login_result.error()
         }.serialize();
     }

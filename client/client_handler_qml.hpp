@@ -21,7 +21,7 @@ public:
     
     void setToken(const std::string& t) {
         token = t;
-        QString qtoken = QString::fromStdString(t);
+        QString qtoken = QString::fromStdString(token);   
         qDebug() << "setToken вызван, токен:" << qtoken;
         qDebug() << "Путь к файлу:" << TokenStorage::filePath();
         TokenStorage::save(qtoken);
@@ -35,7 +35,7 @@ public:
 
         auto p = handler.lock();
         if(!p) return false;
-        TokenRequest req{ .old_token = saved.toStdString() };
+        TokenVerifyRequest req{ .old_token = saved.toStdString() };
         p->send_request(PacketType::TOKEN_VERIFY, req.serialize());
         qDebug() << "TOKEN_VERIFY отправлен";
         return true;

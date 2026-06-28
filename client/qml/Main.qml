@@ -4,8 +4,9 @@ import Client.Handler 1.0
 import Client.Bridge  1.0
 
 Window {
-    width: 400
-    height: 300
+    id: window
+    width: 800
+    height: 600
     visible: true
     title: "Мессенджер"
 
@@ -55,12 +56,17 @@ Window {
     Connections {
         target: ClientBridge
 
-        function onAuthResult(token, errorCode) {
+        function onTokenVerify(errorCode) {
             tokenCheckTimer.stop()
+
+            console.log("ну и хули не регаешь")
             
             if(errorCode === 1) {
+                console.log("токен норм")
                 stackView.replace("MainScreen.qml")
-            } else {
+            } 
+            else {
+                console.log("токен хуйня")
                 stackView.replace("AuthScreen.qml")
             }
         }

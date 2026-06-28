@@ -229,13 +229,6 @@ struct AuthRequest : Serializable<AuthRequest> {
     auto fields() const { return std::tie(login, password); }
 };
 
-struct TokenRequest : Serializable<TokenRequest> {
-    std::string old_token;
-
-    auto fields() { return std::tie(old_token); }
-    auto fields() const { return std::tie(old_token); }
-};
-
 struct LogoutRequest : Serializable<LogoutRequest> {
     std::string old_token;
 
@@ -249,6 +242,20 @@ struct AuthResponse : Serializable<AuthResponse> {
 
     auto fields() { return std::tie(token, error); }
     auto fields() const { return std::tie(token, error); }
+};
+
+struct TokenVerifyRequest : Serializable<TokenVerifyRequest> {
+    std::string old_token;
+
+    auto fields() { return std::tie(old_token); }
+    auto fields() const { return std::tie(old_token); }
+};
+
+struct TokenVerifyResponse : Serializable<TokenVerifyResponse> {
+    ErrorCode error;
+
+    auto fields() { return std::tie(error); }
+    auto fields() const { return std::tie(error); }
 };
 
 struct ChatSendRequest : Serializable<ChatSendRequest> {

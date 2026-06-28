@@ -12,6 +12,7 @@ class NetworkBridge : public QObject {
 private:
     std::shared_ptr<ClientAsyncHandler> handler;
 signals:
+    void tokenVerify(quint32 errorCode);
     void authResult(QString token, quint32 errorCode);
     void chatMessageReceived(QString senderLogin, QString message);
     void directMessageReceived(QString senderLogin, QString message, qint64 timestamp);
@@ -21,6 +22,12 @@ signals:
 public:
     explicit NetworkBridge(std::shared_ptr<ClientAsyncHandler> handler, QObject* parent = nullptr): QObject(parent), handler(handler) {
         
+        handler->on_token_response = [this](TokenVerifyResponse res) {
+            QMetaObject::invokeMethod(this, [this, res] () {
+                emit tokenVerify(res.error.value);
+            }, Qt::QueuedConnection);
+        };
+
         handler->on_auth_response = [this](AuthResponse res) {
             QMetaObject::invokeMethod(this, [this, res] () {
                 emit authResult(QString::fromStdString(res.token), res.error.value);
