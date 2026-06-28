@@ -66,10 +66,9 @@ inline Bytes stringToBytes(const std::string& str){
 }
 
 inline void pack_ui32(Bytes& body, uint32_t value) {
-    value = htonl(value);
-    for(int i = 3; i >= 0; --i) {
-        body.push_back(static_cast<uint8_t>((value >> (4 * i)) & 0xFF));
-    }
+    uint32_t v = htonl(value);
+    const uint8_t* p = reinterpret_cast<const uint8_t*>(&v);
+    body.insert(body.end(), p, p + 4);
 }
 
 inline uint32_t unpack_ui32(size_t& offset, const Bytes& body) {
@@ -77,12 +76,10 @@ inline uint32_t unpack_ui32(size_t& offset, const Bytes& body) {
         throw std::runtime_error("unpack: out of bounds");
     }
 
-    uint32_t value = 0;
-    for(int i = 0; i < 4; ++i) {
-        value = (value << 4) | body[offset + i];
-    }
+    uint32_t v = 0;
+    memcpy(&v, body.data() + offset, 4);
     offset += 4;
-    return ntohl(value);
+    return ntohl(v);
 }
 
 inline void pack_i64(Bytes& body, int64_t value) {
@@ -230,6 +227,20 @@ struct AuthRequest : Serializable<AuthRequest> {
 
     auto fields() { return std::tie(login, password); }
     auto fields() const { return std::tie(login, password); }
+};
+
+struct TokenRequest : Serializable<TokenRequest> {
+    std::string old_token;
+
+    auto fields() { return std::tie(old_token); }
+    auto fields() const { return std::tie(old_token); }
+};
+
+struct LogoutRequest : Serializable<LogoutRequest> {
+    std::string old_token;
+
+    auto fields() { return std::tie(old_token); }
+    auto fields() const { return std::tie(old_token); }
 };
 
 struct AuthResponse : Serializable<AuthResponse> {

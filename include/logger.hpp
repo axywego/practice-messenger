@@ -40,7 +40,7 @@ public:
         std::println("[{}] : {}", currentTimeFormatted(), msg);
     }
 
-    void logPacket(PacketType type, ErrorCode e, std::string msg = "") {
+    void logPacket(PacketType type, ErrorCode e, const std::string& msg = "") {
         std::string color = (e.ok() ? "\x1b[32m" : "\x1b[31m");
         if(msg.empty())
             std::println("{}[{}] : {} = {}\x1b[0m", color, currentTimeFormatted(), packetTypeToString(type), e.toString());

@@ -2,13 +2,27 @@
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#include <openssl/sha.h>
 #include <vector>
 #include <cstdint>
 #include <memory>
+#include <iomanip>
 
-const std::vector<uint8_t> SERVER_KEY(32, 0x42);
+inline std::string sha256(const std::string& input) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(reinterpret_cast<const unsigned char*>(input.data()),
+           input.size(), hash);
 
-std::vector<uint8_t> encryptAES(const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& key) {
+    std::ostringstream ss;
+    for(int i = 0; i < SHA256_DIGEST_LENGTH; ++i)
+        ss << std::hex << std::setw(2) << std::setfill('0')
+           << static_cast<int>(hash[i]);
+    return ss.str();
+}
+
+inline const std::vector<uint8_t> SERVER_KEY(32, 0x42);
+
+inline std::vector<uint8_t> encryptAES(const std::vector<uint8_t>& plaintext, const std::vector<uint8_t>& key) {
     if (key.size() != 32) {
         throw std::invalid_argument("Key must be 32 bytes for AES-256");
     }
@@ -55,7 +69,7 @@ std::vector<uint8_t> encryptAES(const std::vector<uint8_t>& plaintext, const std
     return result;
 }
 
-std::vector<uint8_t> decryptAES(const std::vector<uint8_t>& ciphertext_with_iv, const std::vector<uint8_t>& key) {
+inline std::vector<uint8_t> decryptAES(const std::vector<uint8_t>& ciphertext_with_iv, const std::vector<uint8_t>& key) {
 
     if (key.size() != 32) {
         throw std::invalid_argument("Key must be 32 bytes for AES-256");

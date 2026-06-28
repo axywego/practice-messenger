@@ -13,6 +13,7 @@
 #include <mutex>
 
 #include "../include/client_session.hpp"
+#include "token_cleaner.hpp"
 
 class Server {
 private:
@@ -41,14 +42,21 @@ public:
     void run(){
         io_context.run();
     }
+
+    boost::asio::io_context& get_io_context() {
+        return io_context;
+    }
 };
 
 int main() {
     try {
         Server server;
 
-        server.start_accept();
+        UserRepository::getInstance().cleanExpiredTokens();
 
+        TokenCleaner cleaner(server.get_io_context());
+
+        server.start_accept();
         server.run();
     }
     catch(std::exception& e) {

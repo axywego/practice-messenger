@@ -486,8 +486,12 @@
 #include <QtQml/QtQml>
 
 #include "client_handler_qml.hpp"
+#include "network_bridge.hpp"
 
 int main(int argc, char* argv[]) {
+    QCoreApplication::setApplicationName("messenger");
+    QCoreApplication::setOrganizationName("ROBLOX-Inc.");
+
     QGuiApplication app(argc, argv);
 
     boost::asio::io_context io_context;
@@ -495,18 +499,39 @@ int main(int argc, char* argv[]) {
     socket.connect(tcp::endpoint(boost::asio::ip::make_address_v4("0.0.0.0"), 12345));
 
     auto handler = std::make_shared<ClientAsyncHandler>(std::move(socket));
+    handler->start();
 
+    auto* bridge = new NetworkBridge(handler, &app);
     auto* adapter = new ClientHandlerQml(handler, &app);
+
+    QObject::connect(bridge, &NetworkBridge::authResult, [adapter](QString token, quint32 error) {
+        ErrorCode e {error};
+        if(e.ok()) {
+            adapter->setToken(token.toStdString());
+        }
+    });
 
     QQmlApplicationEngine engine;
 
     qmlRegisterSingletonInstance("Client.Handler", 1, 0, "ClientHandler", adapter);
+    qmlRegisterSingletonInstance("Client.Bridge", 1, 0, "ClientBridge", bridge);
 
     using namespace Qt::StringLiterals;
-    const QUrl url(u"qrc:/Client/UI/qml/test.qml"_s);
+    const QUrl url(u"qrc:/Client/UI/qml/Main.qml"_s);
     engine.load(url);
 
+    if(engine.rootObjects().isEmpty()) {
+        return -1;
+    }
+
+    std::thread io_thread([&io_context]() {
+        io_context.run();
+    });
+
     int exitCode = app.exec();
+
+    io_context.stop();
+    io_thread.join();
 
     return exitCode;
 }

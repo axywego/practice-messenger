@@ -64,6 +64,7 @@ namespace Error {
         inline constexpr ErrorCode LoginExists = makeCode(ErrorCategory::Auth, 1);
         inline constexpr ErrorCode IncorrectCredentials = makeCode(ErrorCategory::Auth, 2);
         inline constexpr ErrorCode NonAuthorized = makeCode(ErrorCategory::Auth, 3);
+        inline constexpr ErrorCode TokenExpired = makeCode(ErrorCategory::Auth, 4);
     }
 
     namespace Message {
@@ -105,6 +106,7 @@ inline constexpr std::string_view codeName(ErrorCode e) noexcept {
         case Error::Auth::LoginExists:          return "LoginExists";
         case Error::Auth::IncorrectCredentials: return "IncorrectCredentials";
         case Error::Auth::NonAuthorized: return "NonAuthorized";
+        case Error::Auth::TokenExpired: return "NonAuthorized";
         
         case Error::Friends::AlreadyFriends: return "AlreadyFriends";
         case Error::Friends::AlreadySent: return "AlreadySent";

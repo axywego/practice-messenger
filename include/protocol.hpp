@@ -23,7 +23,10 @@ enum class PacketType : uint32_t {
     FRIEND_LIST = 10,
 
     DIRECT_MESSAGE = 11,
-    MESSAGE_HISTORY = 12
+    MESSAGE_HISTORY = 12,
+
+    TOKEN_VERIFY = 13,
+    LOGOUT = 14
 };
 
 inline std::string packetTypeToString(PacketType type) {
@@ -40,6 +43,8 @@ inline std::string packetTypeToString(PacketType type) {
         case PacketType::FRIEND_LIST:      return "FRIEND_LIST";
         case PacketType::DIRECT_MESSAGE:   return "DIRECT_MESSAGE";
         case PacketType::MESSAGE_HISTORY:  return "MESSAGE_HISTORY";
+        case PacketType::TOKEN_VERIFY:     return "TOKEN_VERIFY";
+        case PacketType::LOGOUT:           return "LOGOUT";
         default:                           return "UNKNOWN";
     }
 }

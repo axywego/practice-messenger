@@ -78,15 +78,21 @@
 ### Этап 5 — СУБД
 
 - [x] Подключение SQLite через SQLiteCpp (FetchContent в CMake)
+- [x] Таблица users для хранения данных о пользователях
 - [x] Таблица friendships для хранения связей дружбы
 - [x] Таблица direct_messages для хранения истории переписки
+- [x] Таблица session для хранения токенов сессий
 
 ### Этап 6 — Пользовательский интерфейс (если успеваю по времени)
 
-- [ ] Графический интерфейс поверх существующего клиентского протокола
-- [ ] Экраны регистрации и входа
+- [x] Графический интерфейс поверх существующего клиентского протокола
+- [x] Экраны регистрации и входа
 - [ ] Список друзей и входящих заявок
 - [ ] Окно общего чата и окно личной переписки
+
+### Дополнительные реализации
+
+- [x] Система сессий для входа пользователей в приложение без постоянного ввода логина и пароля
 
 ## 5. Архитектура протокола
 
@@ -137,5 +143,12 @@ CREATE TABLE direct_messages(
     delivered INTEGER NOT NULL,
     FOREIGN KEY(sender) REFERENCES users(id),
     FOREIGN KEY(recipient) REFERENCES users(id)
+);
+
+CREATE TABLE sessions (
+    token TEXT PRIMARY KEY,
+    id INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    FOREIGN KEY (id) REFERENCES users(id)
 );
 ```

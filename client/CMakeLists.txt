@@ -1,6 +1,6 @@
 add_library(client_lib 
     client_handler_qml.hpp
-    client_handler_qml.cpp
+    network_bridge.hpp
 )
 
 target_include_directories(client_lib
@@ -35,7 +35,9 @@ qt_add_qml_module(client
     RESOURCE_PREFIX "/"
 
     QML_FILES
-        qml/test.qml
+        qml/Main.qml
+        qml/AuthScreen.qml
+        qml/MainScreen.qml
 )
 
 if(NOT WIN32)

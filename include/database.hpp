@@ -71,6 +71,15 @@ public:
         )");
 
         db->exec(R"(
+            CREATE TABLE IF NOT EXISTS sessions (
+                token TEXT PRIMARY KEY,
+                id INTEGER NOT NULL,
+                created_at INTEGER NOT NULL,
+                FOREIGN KEY (id) REFERENCES users(id)
+            );
+        )");
+
+        db->exec(R"(
             CREATE INDEX IF NOT EXISTS idx_undelivered ON direct_messages (recipient, delivered);
         )");
     }

@@ -7,6 +7,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <expected>
+#include <chrono>
 
 #include <boost/uuid/uuid.hpp>
 #include <boost/uuid/uuid_generators.hpp>
@@ -17,27 +18,13 @@
 
 #include "../structs/user.hpp"
 
-std::string sha256(const std::string& input) {
-    boost::hash2::sha2_256 hash;
+#include "../crypto.hpp"
 
-    hash.update(input.data(), input.size());
-
-    auto res = hash.result();
-
-    std::string hash_string;
-    for(const auto& el : res) {
-        hash_string += std::format("{:02x}", el);
-    }
-
-    return hash_string;
-}
+inline constexpr int64_t TOKEN_TTL = 7 * 24 * 60 * 60;
 
 class UserRepository {
 private:
     std::mutex mtx;
-
-    // token to login
-    std::unordered_map<std::string, std::string> sessions;
 
     boost::uuids::random_generator generator_uuids;
     
@@ -94,21 +81,62 @@ public:
 
     std::expected<std::string, ErrorCode> verifyUser(const std::string& login, const std::string& password) {
         std::lock_guard lock(mtx);
-        if(verifyPassword(login, password)){
-            boost::uuids::uuid id = generator_uuids();
-            std::string token = boost::uuids::to_string(id);
 
-            sessions[token] = login;
-            return token;
-        }
-        return std::unexpected(Error::Auth::IncorrectCredentials);
+        if(!verifyPassword(login, password)) return std::unexpected(Error::Auth::IncorrectCredentials);
+
+        boost::uuids::uuid uuid = generator_uuids();
+        std::string token = boost::uuids::to_string(uuid);
+
+        auto& db = Database::getInstance().get_db();
+
+        int64_t now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
+        SQLite::Statement q(db, "SELECT id FROM users WHERE login = ?");
+        q.bind(1, login);
+
+        int64_t id;
+        if(q.executeStep())
+            id = q.getColumn(0).getInt64();
+
+        SQLite::Statement ins(db, "INSERT INTO sessions (token, id, created_at) VALUES (?, ?, ?)");
+        ins.bind(1, token);
+        ins.bind(2, id);
+        ins.bind(3, now);
+        ins.exec();
+
+        return token;
     }
 
     std::expected<std::string, ErrorCode> getLoginByToken(const std::string& token) {
         std::lock_guard lock(mtx);
-        auto it = sessions.find(token);
-        if(it != sessions.end()) return it->second;
-        return std::unexpected(Error::Auth::NonAuthorized);
+
+        auto& db = Database::getInstance().get_db();
+
+        SQLite::Statement check(db, "SELECT id, created_at FROM sessions WHERE token = ?");
+        check.bind(1, token);
+
+        if(!check.executeStep())
+            return std::unexpected(Error::Auth::NonAuthorized);
+        
+        const auto id = check.getColumn(0).getInt64();
+        const auto created_at = check.getColumn(1).getInt64();
+
+        int64_t now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
+        if(now - created_at > TOKEN_TTL) {
+            SQLite::Statement del(db, "DELETE FROM sessions WHERE token = ?");
+            del.bind(1, token);
+            del.exec();
+            return std::unexpected(Error::Auth::TokenExpired);
+        }
+
+        SQLite::Statement q(db, "SELECT login FROM users WHERE id = ?");
+        q.bind(1, id);
+
+        if(q.executeStep())
+            return q.getColumn(0).getText();
+
+        return std::unexpected(Error::User::NotFound);
     }
 
     ErrorCode userExists(const std::string& login) {
@@ -146,6 +174,21 @@ public:
 
     void logout(const std::string& token) {
         std::lock_guard lock(mtx);
-        sessions.erase(token);
+        auto& db = Database::getInstance().get_db();
+        SQLite::Statement del(db, "DELETE FROM sessions WHERE token = ?");
+        del.bind(1, token);
+        del.exec();
+    }
+
+    void cleanExpiredTokens() {
+        std::lock_guard lock(mtx);
+        auto& db = Database::getInstance().get_db();
+
+        int64_t now = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+
+        SQLite::Statement del(db, "DELETE FROM sessions WHERE ? - created_at > ?");
+        del.bind(1, now);
+        del.bind(2, TOKEN_TTL);
+        del.exec();
     }
 };

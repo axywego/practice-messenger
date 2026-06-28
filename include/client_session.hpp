@@ -41,10 +41,10 @@ private:
 
         if (err.ok()) {
             auto token = user_repo.verifyUser(req.login, req.password);
-            if(token.has_value())
-                current_token = token.value();
+                
+            current_token = token.value();
 
-            AuthResponse res {.token = token.value(), .error = token.error()};
+            AuthResponse res {.token = token.value(), .error = Error::Base::OK};
             response = res.serialize();
 
             login = req.login;
@@ -105,8 +105,6 @@ private:
             ChatResponse res {.error = Error::Base::OK};
             
             response = res.serialize();
-            
-            // std::println("[{}]: {}", login, req.message);
 
             ChatIncoming incoming{.sender_login = login.value(), .message = req.message};
             SessionManager::getInstance().broadcast(login.value(), PacketType::MESSAGE, incoming.serialize());
@@ -432,6 +430,34 @@ private:
         MessageRepository::getInstance().markDelivered(ids);
     }
 
+    Bytes handle_token_verify(const Bytes& body) {
+        auto req = TokenRequest::deserialize(body);
+
+        auto login_result = UserRepository::getInstance().getLoginByToken(req.old_token);
+
+        if(login_result) {
+            return AuthResponse{
+                .token = login_result.value(),
+                .error = Error::Base::OK
+            }.serialize();
+
+            errorCode = Error::Base::OK;
+        }
+        errorCode = login_result.error();
+        return AuthResponse {
+            .token = "",
+            .error = login_result.error()
+        }.serialize();
+    }
+
+    void handle_logout(const Bytes& body) {
+        auto req = LogoutRequest::deserialize(body);
+
+        UserRepository::getInstance().logout(req.old_token);
+        current_login = "";
+        current_token = "";
+    }
+
 protected:
 
     void handle_packet(PacketType packet_type, std::vector<uint8_t> body) override {
@@ -496,8 +522,18 @@ protected:
                 break;
             }
 
+            case PacketType::TOKEN_VERIFY: {
+                response = handle_token_verify(body);
+                break;
+            }
+
+            case PacketType::LOGOUT: {
+                handle_logout(body);
+                break;
+            }
+
             default: {
-                Logger::getInstance().logPacket(packet_type, errorCode, "я проебал этот пакет");
+                Logger::getInstance().logPacket(packet_type, errorCode, "я потерял этот пакет");
                 break;
             }
         }
@@ -519,7 +555,6 @@ public:
     ~ClientSession() override {
         if(!current_login.empty()){
             SessionManager::getInstance().removeUser(current_login);
-            UserRepository::getInstance().logout(current_token);
             std::println("Клиент {} отключился", current_login);
         }
     }
