@@ -19,6 +19,7 @@ private:
     std::string token;
 signals:
     void tokenReady();
+    void messageSent(QString peer, QString message, qint64 timestamp);
 public:
     explicit ClientHandlerQml(std::shared_ptr<ClientAsyncHandler> handler, QObject* parent = nullptr) : QObject(parent), handler(handler) {}
     
@@ -147,6 +148,12 @@ public:
             .recipient_login = recipientLogin.toStdString(),
             .message = message.toStdString()
         };
+
+        int64_t now = std::chrono::duration_cast<std::chrono::seconds>(
+                std::chrono::system_clock::now().time_since_epoch()
+            ).count();
+            
+        emit messageSent(recipientLogin, message, now);
         p->send_request(PacketType::DIRECT_MESSAGE, req.serialize());
     }
 

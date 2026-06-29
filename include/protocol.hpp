@@ -49,6 +49,7 @@ inline std::string packetTypeToString(PacketType type) {
         case PacketType::DIRECT_MESSAGE:   return "DIRECT_MESSAGE";
         case PacketType::MESSAGE_HISTORY:  return "MESSAGE_HISTORY";
         case PacketType::TOKEN_VERIFY:     return "TOKEN_VERIFY";
+        case PacketType::CHAT_LIST:        return "CHAT_LIST";
         case PacketType::LOGOUT:           return "LOGOUT";
         default:                           return "UNKNOWN";
     }

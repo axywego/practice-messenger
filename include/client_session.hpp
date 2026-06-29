@@ -487,13 +487,16 @@ private:
         MessageRepository::getInstance().markDelivered(ids);
     }
 
-    Bytes handle_token_verify(const Bytes& body) {
+    Bytes handle_token_verify(const Bytes& body, std::string& login, bool& is_auth_success) {
         auto req = TokenVerifyRequest::deserialize(body);
 
         auto login_result = UserRepository::getInstance().getLoginByToken(req.old_token);
 
         if(login_result) {
             errorCode = Error::Base::OK;
+            login = login_result.value();
+            current_token = req.old_token;
+            is_auth_success = true;
 
             return TokenVerifyResponse {
                 .error = Error::Base::OK
@@ -580,7 +583,7 @@ protected:
             }
 
             case PacketType::TOKEN_VERIFY: {
-                response = handle_token_verify(body);
+                response = handle_token_verify(body, login, is_auth_success);
                 break;
             }
 

@@ -10,13 +10,13 @@ Rectangle {
     color: "#F5F5F5"
 
     property var chatList: []
+    property var allFriends: []
 
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 12
         spacing: 8
 
-        // Шапка с кнопкой нового чата
         RowLayout {
             Layout.fillWidth: true
 
@@ -31,11 +31,15 @@ Rectangle {
             Button {
                 text: "＋"
                 font.pixelSize: 18
-                onClicked: newChatPopup.open()
+                onClicked: {
+                    // Сбрасываем поле и обновляем список при открытии
+                    newChatLogin.text = ""
+                    updateSuggestions("")
+                    newChatPopup.open()
+                }
             }
         }
 
-        // Список чатов
         ListView {
             id: chatListView
             Layout.fillWidth: true
@@ -93,7 +97,6 @@ Rectangle {
         }
     }
 
-    // Попап для нового чата
     Popup {
         id: newChatPopup
         anchors.centerIn: parent
@@ -105,8 +108,6 @@ Rectangle {
         background: Rectangle {
             radius: 12
             color: "#FFFFFF"
-            layer.enabled: true
-            layer.effect: null
         }
 
         ColumnLayout {
@@ -124,30 +125,33 @@ Rectangle {
                 id: newChatLogin
                 Layout.fillWidth: true
                 placeholderText: "Логин друга"
-
-                // Показываем только друзей из списка
                 Keys.onReturnPressed: startChat()
+
+                onTextChanged: updateSuggestions(text)
             }
 
-            // Список друзей для быстрого выбора
+            // Список подсказок — ListModel вместо вычисляемого свойства
+            ListModel { id: suggestionsModel }
+
             ListView {
                 id: friendSuggestions
                 Layout.fillWidth: true
                 height: Math.min(contentHeight, 150)
                 clip: true
-                model: friendsFiltered
+                model: suggestionsModel
+                visible: suggestionsModel.count > 0
 
                 delegate: Rectangle {
-                    width: parent.width
+                    width: friendSuggestions.width  // id листа, не parent.width
                     height: 40
-                    color: friendMouse.containsMouse ? "#F5F5F5" : "transparent"
+                    color: friendMouse.containsMouse ? "#E3F2FD" : "transparent"
                     radius: 6
 
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left
                         anchors.leftMargin: 8
-                        text: modelData
+                        text: model.name
                         font.pixelSize: 14
                         color: "#212121"
                     }
@@ -157,7 +161,7 @@ Rectangle {
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: {
-                            newChatLogin.text = modelData
+                            newChatLogin.text = model.name
                             startChat()
                         }
                     }
@@ -187,19 +191,21 @@ Rectangle {
         }
     }
 
-    // Фильтрованный список друзей по введённому тексту
-    property var allFriends: []
-    property var friendsFiltered: {
-        var query = newChatLogin.text.toLowerCase()
-        if(query === "") return root.allFriends
-        return root.allFriends.filter(function(f) {
-            return f.toLowerCase().indexOf(query) !== -1
-        })
+    function updateSuggestions(query) {
+        suggestionsModel.clear()
+        var q = query.toLowerCase()
+        for(var i = 0; i < root.allFriends.length; i++) {
+            var f = root.allFriends[i]
+            if(q === "" || f.toLowerCase().indexOf(q) !== -1) {
+                suggestionsModel.append({ name: f })
+            }
+        }
     }
 
     function startChat() {
         var login = newChatLogin.text.trim()
         if(login === "") return
+        else if(!root.allFriends.includes(login)) return
         newChatPopup.close()
         newChatLogin.text = ""
         stackView.push("DirectMessagePage.qml", {
@@ -216,6 +222,19 @@ Rectangle {
 
         function onFriendListReceived(friends, pending) {
             root.allFriends = friends
+            updateSuggestions(newChatLogin.text)
+        }
+
+        function onDirectMessageReceived(senderLogin, message, timestamp) {
+            ClientHandler.getLastMessages()
+        }
+    }
+
+    Connections {
+        target: ClientHandler
+
+        function onMessageSent(peer, message, timestamp) {
+            ClientHandler.getLastMessages()
         }
     }
 
@@ -223,8 +242,12 @@ Rectangle {
         ClientHandler.tokenReady.connect(onTokenReady)
         if(ClientHandler.isTokenReady) {
             ClientHandler.getLastMessages()
-            ClientHandler.getFriendList()  // загружаем друзей для подсказок
+            ClientHandler.getFriendList()
         }
+    }
+
+    onVisibleChanged: {
+        if(visible) ClientHandler.getLastMessages()
     }
 
     function onTokenReady() {

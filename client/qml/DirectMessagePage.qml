@@ -169,7 +169,6 @@ Rectangle {
         var text = messageField.text.trim()
         if(text === "") return
 
-        // Добавляем своё сообщение сразу — не ждём ответа сервера
         messageModel.append({
             message:   text,
             timestamp: Math.floor(Date.now() / 1000),
@@ -204,7 +203,7 @@ Rectangle {
 
         // Входящее личное сообщение в реальном времени
         function onDirectMessageReceived(senderLogin, message, timestamp) {
-            if(senderLogin !== root.peerLogin) return // не наш чат
+            if(senderLogin !== root.peerLogin) return
             messageModel.append({
                 message:   message,
                 timestamp: timestamp,
