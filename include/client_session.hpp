@@ -214,6 +214,14 @@ private:
             errorCode = err;
             return res.serialize();
         }
+
+        // отправка известия что таргет хотят добавить в друзья
+        auto sess = SessionManager::getInstance().getSession(req.target_login);
+        bool online = (sess != nullptr);
+
+        if(online) {
+            sess->send_packet(PacketType::FRIEND_NEW_REQUEST, {});
+        }
         
         FriendResponse res {.error = Error::Base::OK};
         return res.serialize();
@@ -255,6 +263,14 @@ private:
             return res.serialize();
         }
 
+        // отправка известия что таргет добавили в друзья
+        auto sess = SessionManager::getInstance().getSession(req.target_login);
+        bool online = (sess != nullptr);
+
+        if(online) {
+            sess->send_packet(PacketType::FRIEND_REQUEST_ACCEPTED, {});
+        }
+
         FriendResponse res {.error = Error::Base::OK};
         return res.serialize();
     }
@@ -293,6 +309,14 @@ private:
             FriendResponse res {.error = err};
             errorCode = err;
             return res.serialize();
+        }
+
+        // отправка известия что таргету отклонили запрос о дружбе =(
+        auto sess = SessionManager::getInstance().getSession(req.target_login);
+        bool online = (sess != nullptr);
+
+        if(online) {
+            sess->send_packet(PacketType::FRIEND_REQUEST_REJECTED, {});
         }
 
         FriendResponse res {.error = Error::Base::OK};
@@ -402,7 +426,40 @@ private:
             sess->send_packet(PacketType::DIRECT_MESSAGE, incoming.serialize());
         }
 
-        DirectMessageResponse res{.success = true, .error = Error::Base::OK};
+        DirectMessageResponse res{.error = Error::Base::OK};
+        return res.serialize();
+    }
+
+    Bytes handle_chat_list(const Bytes& body) {
+        auto req = ChatListRequest::deserialize(body);
+
+        auto& user_repo = UserRepository::getInstance();
+
+        auto sender_login = user_repo.getLoginByToken(req.token);
+        if(!sender_login) {
+            errorCode = sender_login.error();
+            return ChatListResponse {.chats = {}, .error = sender_login.error()}.serialize();
+        }
+
+        auto id = user_repo.getIdByLogin(sender_login.value());
+        if(!id) {
+            errorCode = sender_login.error();   
+            return ChatListResponse {.chats = {}, .error = id.error()}.serialize();
+        }
+        auto last_messages = MessageRepository::getInstance().getLastMessages(id.value());
+
+        ChatListResponse res;
+        for(const auto& m : last_messages) {
+            res.chats.push_back({
+                .peer_login = m.peer_login,
+                .message = m.message,
+                .timestamp = m.timestamp
+            });
+        }
+
+        errorCode = Error::Base::OK;
+        res.error = Error::Base::OK;
+        
         return res.serialize();
     }
 
@@ -436,11 +493,11 @@ private:
         auto login_result = UserRepository::getInstance().getLoginByToken(req.old_token);
 
         if(login_result) {
+            errorCode = Error::Base::OK;
+
             return TokenVerifyResponse {
                 .error = Error::Base::OK
             }.serialize();
-
-            errorCode = Error::Base::OK;
         }
 
         errorCode = login_result.error();
@@ -524,6 +581,11 @@ protected:
 
             case PacketType::TOKEN_VERIFY: {
                 response = handle_token_verify(body);
+                break;
+            }
+
+            case PacketType::CHAT_LIST: {
+                response = handle_chat_list(body);
                 break;
             }
 

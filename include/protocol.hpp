@@ -11,22 +11,27 @@ using boost::asio::ip::tcp;
 
 enum class PacketType : uint32_t {
     REGISTER = 1,
-    LOGIN = 2,
-    UPLOAD = 3,
-    DOWNLOAD = 4,
-    MESSAGE = 5,
-    RESULT = 6,
+    LOGIN,
+    UPLOAD,
+    DOWNLOAD,
+    MESSAGE,
+    RESULT,
 
-    FRIEND_REQUEST = 7,
-    FRIEND_ACCEPT = 8,
-    FRIEND_REJECT = 9,
-    FRIEND_LIST = 10,
+    FRIEND_REQUEST,
+    FRIEND_ACCEPT,
+    FRIEND_REJECT,
+    FRIEND_LIST,
 
-    DIRECT_MESSAGE = 11,
-    MESSAGE_HISTORY = 12,
+    DIRECT_MESSAGE,
+    CHAT_LIST,
+    MESSAGE_HISTORY,
 
-    TOKEN_VERIFY = 13,
-    LOGOUT = 14
+    TOKEN_VERIFY,
+    LOGOUT,
+
+    FRIEND_NEW_REQUEST,
+    FRIEND_REQUEST_ACCEPTED,
+    FRIEND_REQUEST_REJECTED,
 };
 
 inline std::string packetTypeToString(PacketType type) {

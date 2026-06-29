@@ -364,11 +364,34 @@ struct DirectMessageIncoming : Serializable<DirectMessageIncoming> {
 };
 
 struct DirectMessageResponse : Serializable<DirectMessageResponse> {
-    bool success;
     ErrorCode error;
 
-    auto fields() { return std::tie(success, error); }
-    auto fields() const { return std::tie(success, error); }
+    auto fields() { return std::tie(error); }
+    auto fields() const { return std::tie(error); }
+};
+
+struct ChatListRequest : Serializable<ChatListRequest> {
+    std::string token;
+    
+    auto fields() { return std::tie(token); }
+    auto fields() const { return std::tie(token); }
+};
+
+struct ChatListEntry : Serializable<ChatListEntry> {
+    std::string peer_login;
+    std::string message;
+    int64_t timestamp;
+
+    auto fields() { return std::tie(peer_login, message, timestamp); }
+    auto fields() const { return std::tie(peer_login, message, timestamp); }
+};
+
+struct ChatListResponse : Serializable<ChatListResponse> {
+    std::vector<ChatListEntry> chats;
+    ErrorCode error;
+
+    auto fields() { return std::tie(chats, error); }
+    auto fields() const { return std::tie(chats, error); }
 };
 
 struct HistoryRequest : Serializable<HistoryRequest> { 

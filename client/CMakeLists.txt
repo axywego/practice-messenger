@@ -41,6 +41,9 @@ qt_add_qml_module(client
         qml/SidebarButton.qml
         qml/Sidebar.qml
         qml/GeneralChat.qml
+        qml/FriendsPage.qml
+        qml/DirectMessagePage.qml
+        qml/ChatListPage.qml
 )
 
 if(NOT WIN32)

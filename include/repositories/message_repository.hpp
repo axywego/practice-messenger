@@ -4,6 +4,8 @@
 #include "../codes.hpp"
 #include "../structs/stored_message.hpp"
 #include "../structs/direct_message.hpp"
+#include "../structs/last_message.hpp"
+#include "user_repository.hpp"
 #include <mutex>
 #include <expected>
 #include <chrono>
@@ -84,6 +86,42 @@ public:
             upd.bind(i + 1, ids[i]);
         }
         upd.exec();
+    }
+
+    std::vector<LastMessage> getLastMessages(int64_t user_id) {
+        std::lock_guard lock(mtx);
+
+        auto& db = Database::getInstance().get_db();
+
+        SQLite::Statement stmt(db, R"(
+            SELECT 
+                CASE WHEN sender = ? THEN recipient ELSE sender END AS peer,
+                message,
+                create_at
+            FROM direct_messages
+            WHERE sender = ? OR recipient = ?
+            GROUP BY peer
+            HAVING create_at = MAX(create_at)
+            ORDER BY create_at DESC
+        )");
+
+        stmt.bind(1, user_id);
+        stmt.bind(2, user_id);
+        stmt.bind(3, user_id);
+
+        std::vector<LastMessage> history;
+        while(stmt.executeStep()) {
+            LastMessage msg;
+            auto id = stmt.getColumn(0).getInt64();
+            auto result = UserRepository::getInstance().getLoginById(id);
+            if(result) {
+                msg.peer_login = result.value();
+            }
+            msg.message = stmt.getColumn(1).getText();
+            msg.timestamp = stmt.getColumn(2).getInt64();
+            history.push_back(msg);
+        }
+        return history;
     }
 
     std::vector<DirectMessage> getHistory(int64_t user1, int64_t user2, int64_t limit) {

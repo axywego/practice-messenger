@@ -30,22 +30,8 @@ Rectangle {
 
                 GeneralChat { }
                 FriendsPage { }
+                ChatListPage { }
             }
-        }
-    }
-
-    function sendMessage() {
-        if(messageField.text.trim() === "") return
-        chatModel.append({ sender: "Я", message: messageField.text })
-        ClientHandler.sendMessageGeneralChat(messageField.text)
-        messageField.text = ""
-    }
-
-    Connections {
-        target: ClientBridge
-
-        function onChatMessageReceived(senderLogin, message) {
-            chatModel.append({ sender: senderLogin, message: message })
         }
     }
 }

@@ -58,15 +58,11 @@ Window {
 
         function onTokenVerify(errorCode) {
             tokenCheckTimer.stop()
-
-            console.log("ну и хули не регаешь")
             
             if(errorCode === 1) {
-                console.log("токен норм")
                 stackView.replace("MainScreen.qml")
             } 
             else {
-                console.log("токен хуйня")
                 stackView.replace("AuthScreen.qml")
             }
         }

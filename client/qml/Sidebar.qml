@@ -55,7 +55,7 @@ Rectangle {
                 SidebarButton {
                     width: parent.width - 20
                     anchors.horizontalCenter: parent.horizontalCenter
-                    title: "Личные чаты"
+                    title: "Друзья"
                     isActive: root.currentIndex === 1
                     visible: true
                     
@@ -69,8 +69,7 @@ Rectangle {
                 SidebarButton {
                     width: parent.width - 20
                     anchors.horizontalCenter: parent.horizontalCenter
-                    title: "Друзья"
-                    iconText: "📋"
+                    title: "Чаты"
                     isActive: root.currentIndex === 2
                     visible: true
                     

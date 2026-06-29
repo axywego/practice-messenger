@@ -13,19 +13,27 @@
 
 class ClientHandlerQml : public QObject {
     Q_OBJECT
+    Q_PROPERTY(bool isTokenReady READ isTokenReady NOTIFY tokenReady)
 private:
     std::weak_ptr<ClientAsyncHandler> handler;
     std::string token;
+signals:
+    void tokenReady();
 public:
     explicit ClientHandlerQml(std::shared_ptr<ClientAsyncHandler> handler, QObject* parent = nullptr) : QObject(parent), handler(handler) {}
     
+    bool isTokenReady() const {
+        return !token.empty();
+    }
+
     void setToken(const std::string& t) {
         token = t;
-        QString qtoken = QString::fromStdString(token);   
+        QString qtoken = QString::fromStdString(t);   
         qDebug() << "setToken вызван, токен:" << qtoken;
         qDebug() << "Путь к файлу:" << TokenStorage::filePath();
         TokenStorage::save(qtoken);
         qDebug() << "Прочитали обратно:" << TokenStorage::load();
+        emit tokenReady();
     }
 
     Q_INVOKABLE bool checkSavedToken() {
@@ -92,23 +100,72 @@ public:
         p->send_request(PacketType::MESSAGE, req.serialize());
     }
 
-    Q_INVOKABLE void sendFriendRequest(const QVariantHash& data) {
-
-    }
-    Q_INVOKABLE void acceptFriendRequest(const QVariantHash& data) {
-
-    }
-    Q_INVOKABLE void rejectFriendRequest(const QVariantHash& data) {
-
-    }
-    Q_INVOKABLE void getFriendList(const QVariantHash& data) {
-
+    Q_INVOKABLE void sendFriendRequest(const QString& target_login) {
+        auto p = handler.lock();
+        if(!p) return;
+        FriendRequest req {
+            .token = token,
+            .target_login = target_login.toStdString(),
+        };
+        p->send_request(PacketType::FRIEND_REQUEST, req.serialize());
     }
 
-    Q_INVOKABLE QVariantHash sendDirectMessage(const QVariantHash& data) {
-
+    Q_INVOKABLE void acceptFriendRequest(const QString& target_login) {
+        auto p = handler.lock();
+        if(!p) return;
+        FriendRequest req {
+            .token = token,
+            .target_login = target_login.toStdString(),
+        };
+        p->send_request(PacketType::FRIEND_ACCEPT, req.serialize());
     }
-    Q_INVOKABLE QVariantList getHistoryDirectMessage(const QVariantHash& data) {
 
+    Q_INVOKABLE void rejectFriendRequest(const QString& target_login) {
+        auto p = handler.lock();
+        if(!p) return;
+        FriendRequest req {
+            .token = token,
+            .target_login = target_login.toStdString(),
+        };
+        p->send_request(PacketType::FRIEND_REJECT, req.serialize());
+    }
+
+    Q_INVOKABLE void getFriendList() {
+        auto p = handler.lock();
+        if(!p) return;
+        FriendListRequest req {
+            .token = token,
+        };
+        p->send_request(PacketType::FRIEND_LIST, req.serialize());
+    }
+
+    Q_INVOKABLE void sendDirectMessage(const QString& recipientLogin, const QString& message) {
+        auto p = handler.lock();
+        if(!p) return;
+        DirectMessageRequest req {
+            .token = token,
+            .recipient_login = recipientLogin.toStdString(),
+            .message = message.toStdString()
+        };
+        p->send_request(PacketType::DIRECT_MESSAGE, req.serialize());
+    }
+
+    Q_INVOKABLE void getHistoryDirectMessage(const QString& peerLogin) {
+        auto p = handler.lock();
+        if(!p) return;
+        HistoryRequest req {
+            .token = token,
+            .peer_login = peerLogin.toStdString()
+        };
+        p->send_request(PacketType::MESSAGE_HISTORY, req.serialize());
+    }
+
+    Q_INVOKABLE void getLastMessages() {
+        auto p = handler.lock();
+        if(!p) return;
+        ChatListRequest req {
+            .token = token,
+        };
+        p->send_request(PacketType::CHAT_LIST, req.serialize());
     }
 };

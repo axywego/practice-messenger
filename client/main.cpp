@@ -511,6 +511,13 @@ int main(int argc, char* argv[]) {
         }
     });
 
+    QObject::connect(bridge, &NetworkBridge::tokenVerify, [adapter](quint32 error) {
+        ErrorCode e {error};
+        if(e.ok()) {
+            adapter->setToken(TokenStorage::load().toStdString());
+        }
+    });
+
     QQmlApplicationEngine engine;
 
     qmlRegisterSingletonInstance("Client.Handler", 1, 0, "ClientHandler", adapter);

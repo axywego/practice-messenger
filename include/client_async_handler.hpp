@@ -20,6 +20,10 @@ public:
     std::function<void(FriendResponse)> on_friend_response;
     std::function<void(FriendListResponse)> on_friend_list_response;
     std::function<void(HistoryResponse)> on_history_response;
+    std::function<void(ChatListResponse)> on_chat_list;
+
+    // вызов в том случае, если нас добавляют в друзья или отклоняют запрос ну и да
+    std::function<void()> on_friend_new_request;
 
     std::function<void(std::string)> on_message;
 
@@ -50,6 +54,12 @@ protected:
             case PacketType::DIRECT_MESSAGE: {
                 auto msg = DirectMessageIncoming::deserialize(body);
                 if(on_dm_incoming) on_dm_incoming(msg);
+                break;
+            }
+            case PacketType::FRIEND_NEW_REQUEST:
+            case PacketType::FRIEND_REQUEST_ACCEPTED:
+            case PacketType::FRIEND_REQUEST_REJECTED: {
+                if(on_friend_new_request) on_friend_new_request();
                 break;
             }
             case PacketType::RESULT: {
@@ -88,6 +98,11 @@ protected:
                     case PacketType::MESSAGE_HISTORY: {
                         auto res = HistoryResponse::deserialize(body);
                         if(on_history_response) on_history_response(res);
+                        break;
+                    }
+                    case PacketType::CHAT_LIST: {
+                        auto res = ChatListResponse::deserialize(body);
+                        if(on_chat_list) on_chat_list(res);
                         break;
                     }
                     default:

@@ -16,9 +16,12 @@ signals:
     void authResult(QString token, quint32 errorCode);
     void chatMessageReceived(QString senderLogin, QString message);
     void directMessageReceived(QString senderLogin, QString message, qint64 timestamp);
-    void frientRequestResult(quint32 errorCode);
+    void friendRequestResult(quint32 errorCode);
     void friendListReceived(QStringList friends, QStringList pending);
     void historyReceived(QVariantList messages);
+    void chatListReceived(QVariantList lastMessages);
+
+    void friendNewRequest();
 public:
     explicit NetworkBridge(std::shared_ptr<ClientAsyncHandler> handler, QObject* parent = nullptr): QObject(parent), handler(handler) {
         
@@ -48,7 +51,7 @@ public:
 
         handler->on_friend_response = [this](FriendResponse res) {
             QMetaObject::invokeMethod(this, [this, res] () {
-                emit frientRequestResult(res.error.value);
+                emit friendRequestResult(res.error.value);
             }, Qt::QueuedConnection);
         };
 
@@ -79,7 +82,24 @@ public:
             }, Qt::QueuedConnection);
         };
 
+        handler->on_friend_new_request = [this]() {
+            QMetaObject::invokeMethod(this, [this] () {
+                emit friendNewRequest();
+            }, Qt::QueuedConnection);
+        };
+
+        handler->on_chat_list = [this](ChatListResponse res) {
+            QVariantList lastMessages;
+            for(const auto& m : res.chats) {
+                QVariantHash message;
+                message["peer"] = QString::fromStdString(m.peer_login);
+                message["message"] = QString::fromStdString(m.message);
+                message["timestamp"] = static_cast<qint64>(m.timestamp);
+                lastMessages << message;
+            }
+            QMetaObject::invokeMethod(this, [this, lastMessages] () {
+                emit chatListReceived(lastMessages);
+            }, Qt::QueuedConnection);
+        };
     }
-
-
 };
