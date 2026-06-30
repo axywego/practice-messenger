@@ -487,6 +487,7 @@
 
 #include "client_handler_qml.hpp"
 #include "network_bridge.hpp"
+#include "error_codes_handler_qml.hpp"
 
 int main(int argc, char* argv[]) {
     QCoreApplication::setApplicationName("messenger");
@@ -503,6 +504,7 @@ int main(int argc, char* argv[]) {
 
     auto* bridge = new NetworkBridge(handler, &app);
     auto* adapter = new ClientHandlerQml(handler, &app);
+    auto* errorsHandler = new ErrorCodeHandler(&app);
 
     QObject::connect(bridge, &NetworkBridge::authResult, [adapter](QString token, quint32 error) {
         ErrorCode e {error};
@@ -522,6 +524,7 @@ int main(int argc, char* argv[]) {
 
     qmlRegisterSingletonInstance("Client.Handler", 1, 0, "ClientHandler", adapter);
     qmlRegisterSingletonInstance("Client.Bridge", 1, 0, "ClientBridge", bridge);
+    qmlRegisterSingletonInstance("Client.ErrorHandler", 1, 0, "ClientErrorHandler", errorsHandler);
 
     using namespace Qt::StringLiterals;
     const QUrl url(u"qrc:/Client/UI/qml/Main.qml"_s);

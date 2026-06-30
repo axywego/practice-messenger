@@ -8,7 +8,7 @@ import Client.UI 1.0
 Rectangle {
     id: root
     objectName: "MainScreen"
-    color: "#F5F5F5"
+    color: "#F4F6FB"
 
     RowLayout {
         anchors.fill: parent

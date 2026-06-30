@@ -1,6 +1,7 @@
 add_library(client_lib 
     client_handler_qml.hpp
     network_bridge.hpp
+    error_codes_handler_qml.hpp
 )
 
 target_include_directories(client_lib
@@ -44,6 +45,7 @@ qt_add_qml_module(client
         qml/FriendsPage.qml
         qml/DirectMessagePage.qml
         qml/ChatListPage.qml
+        qml/Toast.qml
 )
 
 if(NOT WIN32)

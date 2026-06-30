@@ -123,6 +123,31 @@ inline constexpr std::string_view codeName(ErrorCode e) noexcept {
     }
 }
 
+inline constexpr std::string codeErrorText(ErrorCode e) noexcept {
+    switch (e.value) {
+        case Error::Base::OK: return "OK";
+        case Error::Base::Unknown: return "Неизвестная ошибка";
+
+        case Error::Auth::LoginExists:          return "Логин уже существует!";
+        case Error::Auth::IncorrectCredentials: return "Неверно введены данные!";
+        case Error::Auth::NonAuthorized: return "Вы не авторизованы!";
+        case Error::Auth::TokenExpired: return "Срок жизни токена истек!";
+        
+        case Error::Friends::AlreadyFriends: return "Вы уже друзья!";
+        case Error::Friends::AlreadySent: return "Запрос в друзья уже был отправлен!";
+        case Error::Friends::RequestToYourself: return "Нельзя отправить запрос самому себе!";
+        case Error::Friends::AcceptNonExistentRequest: return "Невозможно принять несуществующий запрос!";
+        case Error::Friends::AcceptRequestToYourself: return "Нельзя принять запрос на дружбу самому себе!";
+        case Error::Friends::RejectNonExistentRequest: return "Нельзя отвергнуть несуществующий запрос!";
+        case Error::Friends::RejectRequestToYourself: return "Нельзя отвергнуть запрос на дружбу самому себе!";
+        case Error::Friends::NotFriends: return "Вы не друзья!";
+
+        case Error::User::NotFound: return "Пользователь не найден!";
+
+        default:                              return "Неизвестный код ошибки!";
+    }
+}
+
 inline std::string ErrorCode::toString() const {
     return std::format("{}.{}", categoryName(category()), codeName(*this));
 }
