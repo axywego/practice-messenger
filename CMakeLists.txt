@@ -13,13 +13,6 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Sql Gui Quick Qml)
 qt6_standard_project_setup()
 
 include(FetchContent)
-FetchContent_Declare(ftxui
-  GIT_REPOSITORY https://github.com/ArthurSonzogni/ftxui
-  GIT_TAG v7.0.0
-)
-FetchContent_MakeAvailable(ftxui)
-
-include(FetchContent)
 FetchContent_Declare(
     SQLiteCpp
     GIT_REPOSITORY https://github.com/SRombauts/SQLiteCpp.git

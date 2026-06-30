@@ -27,7 +27,6 @@ target_link_libraries(client PRIVATE
     Qt${QT_VERSION_MAJOR}::Qml
     ${Boost_LIBRARIES}
     OpenSSL::Crypto
-    ftxui::screen ftxui::dom ftxui::component
 )
 
 qt_add_qml_module(client
