@@ -1,0 +1,9 @@
+services:
+  server:
+    image: axywego/messenger-server:latest
+    container_name: messenger-server
+    ports:
+      - "12345:12345"
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

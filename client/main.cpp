@@ -497,7 +497,7 @@ int main(int argc, char* argv[]) {
 
     boost::asio::io_context io_context;
     tcp::socket socket(io_context);
-    socket.connect(tcp::endpoint(boost::asio::ip::make_address_v4("0.0.0.0"), 12345));
+    socket.connect(tcp::endpoint(boost::asio::ip::make_address_v4("193.43.72.4"), 12345));
 
     auto handler = std::make_shared<ClientAsyncHandler>(std::move(socket));
     handler->start();
